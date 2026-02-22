@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { getTeamById, REVEAL_DATE, getAuthToken, parseJwt } from "../services/api";
 import { debugLog } from "../services/debug";
+import TeamSummary from "../components/TeamSummary";
 
 export default function TeamPublicPage() {
     const { teamId } = useParams();
@@ -32,67 +33,31 @@ export default function TeamPublicPage() {
         };
     }, [teamId]);
 
+    const isRevealOK = team && (
+        team.season < 2026 ||
+        new Date() >= new Date(REVEAL_DATE) ||
+        (getAuthToken() && parseJwt(getAuthToken())?.sub === team.userId)
+    );
+
     return (
         <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">
-                        {team?.teamName ?? "Équipe"}
-                    </h1>
-                    <p className="mt-1 text-slate-600">
-                        Points {team?.points ?? 0} · Coût{" "}
-                        {team?.totalPrice ?? 0}
-                    </p>
-                </div>
+            <div className="flex items-start justify-end gap-4">
                 <Link className="text-sm text-blue-700 hover:underline" to="/leaderboard">
                     ← Retour au classement
                 </Link>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                {loading ? <div className="text-sm text-slate-600">Chargement...</div> : null}
-                {error ? <div className="text-sm text-red-700">{error}</div> : null}
+            {loading ? <div className="text-sm text-slate-600">Chargement...</div> : null}
+            {error ? <div className="text-sm text-red-700">{error}</div> : null}
 
-                {!loading && !error ? (
-                    <>
-                        {(team?.season < 2026) || (new Date() >= new Date(REVEAL_DATE)) || (getAuthToken() && parseJwt(getAuthToken())?.sub === team?.userId) ? (
-                            <div className="overflow-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b border-slate-200 text-left text-slate-500">
-                                            <th className="py-2 pr-4">#</th>
-                                            <th className="py-2 pr-4">Coureur</th>
-                                            <th className="py-2 pr-4 text-right">Prix</th>
-                                            <th className="py-2 pr-4 text-right">Points</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(team?.riders ?? []).map((r, idx) => (
-                                            <tr key={`${r.rider_name ?? "rider"}-${idx}`} className="border-b border-slate-100">
-                                                <td className="py-2 pr-4">{r.slot ?? idx + 1}</td>
-                                                <td className="py-2 pr-4">{r.rider_name}</td>
-                                                <td className="py-2 pr-4 text-right">{r.price ?? 0}</td>
-                                                <td className="py-2 pr-4 text-right">{r.points ?? 0}</td>
-                                            </tr>
-                                        ))}
-                                        {(team?.riders ?? []).length === 0 ? (
-                                            <tr>
-                                                <td className="py-4 text-sm text-slate-600" colSpan={4}>
-                                                    Aucun coureur trouvé.
-                                                </td>
-                                            </tr>
-                                        ) : null}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="p-8 text-center text-slate-500">
-                                <p>La composition de l'équipe est masquée jusqu'au début de la saison (28/02/2026).</p>
-                            </div>
-                        )}
-                    </>
-                ) : null}
-            </div>
+            {!loading && !error && team ? (
+                <TeamSummary
+                    team={team}
+                    isPublic={true}
+                    hideRiders={!isRevealOK}
+                    hideRidersMessage="La composition de l'équipe est masquée jusqu'au début de la saison (28/02/2026)."
+                />
+            ) : null}
         </div>
     );
 }

@@ -121,7 +121,7 @@ export async function getLatestRace() {
   // Results
   const { data: results, error: resErr } = await getSupabase()
     .from("race_results")
-    .select("rank, points_awarded, riders(rider_name, team_name)")
+    .select("rank, points_awarded, riders(rider_name, team_name, photo_url)")
     .eq("race_id", race.id)
     .order("rank", { ascending: true })
     .limit(50);
@@ -134,6 +134,7 @@ export async function getLatestRace() {
     results: (results || []).map(r => ({
       rider: r.riders?.rider_name,
       team: r.riders?.team_name ?? "",
+      photo_url: r.riders?.photo_url,
       points: r.points_awarded,
       rank: r.rank
     }))
@@ -187,7 +188,7 @@ export async function getMyTeam(season = 2026) {
     .select(`
       slot,
       riders (
-        id, rider_name, team_name, nationality, active,
+        id, rider_name, team_name, nationality, active, photo_url,
         rider_prices(season_year, price),
         rider_points(season_year, points)
       )
@@ -211,6 +212,7 @@ export async function getMyTeam(season = 2026) {
         team_name: r.team_name,
         nationality: r.nationality,
         active: r.active,
+        photo_url: r.photo_url,
         price: priceObj ? priceObj.price : 0,
         points: pointsObj ? pointsObj.points : 0
       };
@@ -384,7 +386,7 @@ export async function getTeamById(teamId, season = 2026) {
     .select(`
       slot,
       riders (
-        id, rider_name, team_name, nationality, active,
+        id, rider_name, team_name, nationality, active, photo_url,
         rider_prices(season_year, price),
         rider_points(season_year, points)
       )
@@ -410,6 +412,7 @@ export async function getTeamById(teamId, season = 2026) {
         team_name: r.team_name,
         nationality: r.nationality,
         active: r.active,
+        photo_url: r.photo_url,
         price: priceObj ? priceObj.price : 0,
         points: pointsObj ? pointsObj.points : 0
       };
@@ -417,60 +420,88 @@ export async function getTeamById(teamId, season = 2026) {
   };
 }
 
-export async function autocompleteRiders(query, season = 2026) {
+export async function searchRiders(filters = {}, season = 2026) {
   if (OFFLINE_MODE) return [];
 
-  const { data, error } = await getSupabase()
-    .from("riders")
+  const { query, team, minPrice = 0, maxPrice, limit = 50 } = filters;
+
+  let queryBuilder = getSupabase()
+    .from("rider_prices")
     .select(`
-      *,
-      rider_prices(season_year, price)
+      price,
+      season_year,
+      riders!inner (
+        id, rider_name, team_name, nationality, active, photo_url
+      )
     `)
-    .ilike("rider_name", `%${query}%`)
-    .limit(20); // increased limit
+    .eq("season_year", season)
+    .eq("riders.active", true);
 
-  if (error) return [];
+  // Apply text search
+  if (query && query.length >= 2) {
+    queryBuilder = queryBuilder.ilike("riders.rider_name", `%${query}%`);
+  }
 
-  const results = data.map(r => {
-    const priceObj = r.rider_prices?.find(p => p.season_year === season);
-    return {
-      ...r,
-      price: priceObj ? priceObj.price : 0
-    };
-  });
+  // Apply exact matches
+  if (team) {
+    queryBuilder = queryBuilder.eq("riders.team_name", team);
+  }
 
-  // Sort by price desc
-  results.sort((a, b) => b.price - a.price);
-  return results;
+  // Price ranges
+  if (minPrice !== undefined && minPrice !== null) {
+    queryBuilder = queryBuilder.gte("price", minPrice);
+  }
+  if (maxPrice !== undefined && maxPrice !== null) {
+    queryBuilder = queryBuilder.lte("price", maxPrice);
+  }
+
+  // Sort by price
+  const isAscending = filters.sortOrder === "asc";
+  queryBuilder = queryBuilder.order("price", { ascending: isAscending });
+
+  // Apply limit directly in DB to avoid the 1000 row truncation issue
+  queryBuilder = queryBuilder.limit(limit);
+
+  // Execute query
+  const { data, error } = await queryBuilder;
+
+  if (error) {
+    debugLog("searchRiders error", error);
+    return [];
+  }
+
+  // Process and map back to the flat structure expected by the app
+  return data.map(rp => ({
+    id: rp.riders.id,
+    rider_name: rp.riders.rider_name,
+    team_name: rp.riders.team_name,
+    nationality: rp.riders.nationality,
+    active: rp.riders.active,
+    photo_url: rp.riders.photo_url,
+    price: rp.price
+  }));
 }
 
-export async function getTopRiders(season = 2026) {
-  if (OFFLINE_MODE) return [];
+export async function getFilterOptions(season = 2026) {
+  if (OFFLINE_MODE) return { teams: [] };
 
-  // Fetch riders with their prices
-  const { data, error } = await getSupabase()
-    .from("riders")
-    .select(`
-      *,
-      rider_prices(season_year, price)
-    `);
+  try {
+    // Fetch all active riders to extract unique teams
+    // In a real app with huge data, this might be a dedicated RPC or view
+    const { data, error } = await getSupabase()
+      .from("riders")
+      .select("team_name")
+      .eq("active", true);
 
-  if (error) return [];
+    if (error) throw error;
 
-  const results = data.map(r => {
-    const priceObj = r.rider_prices?.find(p => p.season_year === season);
-    return {
-      ...r,
-      price: priceObj ? priceObj.price : 0
-    };
-  });
+    const teams = [...new Set(data.map(d => d.team_name).filter(Boolean))].sort();
 
-  // Filter out those with 0 price (if any) or just sort
-  // Sort by price desc
-  results.sort((a, b) => b.price - a.price);
-
-  // Return top 50
-  return results.slice(0, 50);
+    return { teams };
+  } catch (error) {
+    debugLog("getFilterOptions error", error);
+    return { teams: [] };
+  }
 }
 
 export async function getHistory() {
