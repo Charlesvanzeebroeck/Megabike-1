@@ -425,30 +425,30 @@ export async function searchRiders(filters = {}, season = 2026) {
 
   const { query, team, minPrice = 0, maxPrice, limit = 50 } = filters;
 
-  // Fetch active riders in two pages to work around Supabase's 1000-row default limit
-  let queryBuilder = getSupabase()
-    .from("riders")
-    .select(`
-      id, rider_name, team_name, nationality, active, photo_url,
-      rider_prices(season_year, price)
-    `)
-    .eq("active", true)
-    .order("rider_name", { ascending: true });
+  // Helper to build a fresh query with all filters applied
+  function buildQuery() {
+    let qb = getSupabase()
+      .from("riders")
+      .select(`
+        id, rider_name, team_name, nationality, active, photo_url,
+        rider_prices(season_year, price)
+      `)
+      .eq("active", true)
+      .order("rider_name", { ascending: true });
 
-  // Apply text search
-  if (query && query.length >= 2) {
-    queryBuilder = queryBuilder.ilike("rider_name", `%${query}%`);
+    if (query && query.length >= 2) {
+      qb = qb.ilike("rider_name", `%${query}%`);
+    }
+    if (team) {
+      qb = qb.eq("team_name", team);
+    }
+    return qb;
   }
 
-  // Apply exact matches
-  if (team) {
-    queryBuilder = queryBuilder.eq("team_name", team);
-  }
-
-  // Fetch in two pages to get all ~1570 active riders
+  // Fetch in two pages to get all ~1570 active riders (Supabase caps at 1000)
   const [page1, page2] = await Promise.all([
-    queryBuilder.range(0, 999),
-    queryBuilder.range(1000, 1999)
+    buildQuery().range(0, 999),
+    buildQuery().range(1000, 1999)
   ]);
 
   if (page1.error) {
