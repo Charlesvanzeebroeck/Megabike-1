@@ -425,61 +425,68 @@ export async function searchRiders(filters = {}, season = 2026) {
 
   const { query, team, minPrice = 0, maxPrice, limit = 50 } = filters;
 
+  // Fetch active riders in two pages to work around Supabase's 1000-row default limit
   let queryBuilder = getSupabase()
-    .from("rider_prices")
+    .from("riders")
     .select(`
-      price,
-      season_year,
-      riders!inner (
-        id, rider_name, team_name, nationality, active, photo_url
-      )
+      id, rider_name, team_name, nationality, active, photo_url,
+      rider_prices(season_year, price)
     `)
-    .eq("season_year", season)
-    .eq("riders.active", true);
+    .eq("active", true)
+    .order("rider_name", { ascending: true });
 
   // Apply text search
   if (query && query.length >= 2) {
-    queryBuilder = queryBuilder.ilike("riders.rider_name", `%${query}%`);
+    queryBuilder = queryBuilder.ilike("rider_name", `%${query}%`);
   }
 
   // Apply exact matches
   if (team) {
-    queryBuilder = queryBuilder.eq("riders.team_name", team);
+    queryBuilder = queryBuilder.eq("team_name", team);
   }
 
-  // Price ranges
-  if (minPrice !== undefined && minPrice !== null) {
-    queryBuilder = queryBuilder.gte("price", minPrice);
-  }
-  if (maxPrice !== undefined && maxPrice !== null) {
-    queryBuilder = queryBuilder.lte("price", maxPrice);
-  }
+  // Fetch in two pages to get all ~1570 active riders
+  const [page1, page2] = await Promise.all([
+    queryBuilder.range(0, 999),
+    queryBuilder.range(1000, 1999)
+  ]);
 
-  // Sort by price
-  const isAscending = filters.sortOrder === "asc";
-  queryBuilder = queryBuilder.order("price", { ascending: isAscending });
-
-  // Apply limit directly in DB to avoid the 1000 row truncation issue
-  queryBuilder = queryBuilder.limit(limit);
-
-  // Execute query
-  const { data, error } = await queryBuilder;
-
-  if (error) {
-    debugLog("searchRiders error", error);
+  if (page1.error) {
+    debugLog("searchRiders error (page1)", page1.error);
     return [];
   }
 
-  // Process and map back to the flat structure expected by the app
-  return data.map(rp => ({
-    id: rp.riders.id,
-    rider_name: rp.riders.rider_name,
-    team_name: rp.riders.team_name,
-    nationality: rp.riders.nationality,
-    active: rp.riders.active,
-    photo_url: rp.riders.photo_url,
-    price: rp.price
-  }));
+  const allData = [...(page1.data || []), ...(page2.data || [])];
+
+  // Process and map prices
+  let results = allData.map(r => {
+    const priceObj = r.rider_prices?.find(p => p.season_year === season);
+    return {
+      id: r.id,
+      rider_name: r.rider_name,
+      team_name: r.team_name,
+      nationality: r.nationality,
+      active: r.active,
+      photo_url: r.photo_url,
+      price: priceObj ? priceObj.price : 0
+    };
+  });
+
+  // Apply price range filters
+  results = results.filter(r => r.price >= minPrice);
+  if (maxPrice !== undefined && maxPrice !== null) {
+    results = results.filter(r => r.price <= maxPrice);
+  }
+
+  // Sort by price
+  if (filters.sortOrder === "asc") {
+    results.sort((a, b) => a.price - b.price);
+  } else {
+    results.sort((a, b) => b.price - a.price);
+  }
+
+  // Apply limit
+  return results.slice(0, limit);
 }
 
 export async function getFilterOptions(season = 2026) {
