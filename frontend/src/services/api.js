@@ -7,8 +7,8 @@ export { getAuthToken, setAuthToken, parseJwt };
 
 // --- CONFIG ---
 const OFFLINE_MODE = process.env.REACT_APP_OFFLINE === "true";
-export const LOCK_DATE = "2026-02-27T00:00:00+01:00";
-export const REVEAL_DATE = "2026-02-27T00:00:00+01:00";
+export const LOCK_DATE = "2026-02-27T23:59:00+01:00";
+export const REVEAL_DATE = "2026-02-27T23:59:00+01:00";
 
 // --- API FUNCTIONS ---
 
