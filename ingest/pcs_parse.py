@@ -33,14 +33,19 @@ def parse_race_result_table(html: str) -> list[dict[str, Any]]:
             continue
 
         # Rank is usually first col
-        try:
-            rank = int(_clean_text(tds[0].text()))
-        except Exception:
-            continue
+        raw_rank = _clean_text(tds[0].text()).upper()
+        if raw_rank in ("DNF", "DNS", "OTL", "DSQ"):
+            rank = 999
+        else:
+            try:
+                rank = int(raw_rank)
+            except Exception:
+                continue
 
         rider_url = None
         rider_name = None
-        rider_td_idx = None
+        team_name = ""
+
         for i, td in enumerate(tds):
             a = td.css_first("a")
             if a is None:
@@ -48,16 +53,12 @@ def parse_race_result_table(html: str) -> list[dict[str, Any]]:
             href = a.attributes.get("href", "")
             if href.startswith("rider/"):
                 rider_url = href
-                rider_td_idx = i
                 rider_name = _clean_text(a.text())
-                break
+            elif href.startswith("team/"):
+                team_name = _clean_text(a.text())
 
         if not rider_url or not rider_name:
             continue
-
-        team_name = ""
-        if rider_td_idx is not None and rider_td_idx + 1 < len(tds):
-            team_name = _clean_text(tds[rider_td_idx + 1].text())
 
         out.append(
             {

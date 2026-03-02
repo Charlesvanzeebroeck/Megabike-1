@@ -71,7 +71,11 @@ async def main() -> None:
         for race_key in race_keys:
             slugs.append((race_key, f"race/{race_key}/{args.season_year}"))
     elif args.race_slug:
-        slugs.append(("_custom_", args.race_slug))
+        parts = args.race_slug.strip('/').split('/')
+        if len(parts) >= 2 and parts[0] == "race":
+            slugs.append((parts[1], args.race_slug))
+        else:
+            slugs.append(("_custom_", args.race_slug))
     else:
         return
 
@@ -155,10 +159,15 @@ async def main() -> None:
         if not results:
             log("[sync] no results rows; upserting race definition only")
 
+        # Determine correct pcs_slug for the database (no /result suffix)
+        db_pcs_slug = result_slug if race_key == "_custom_" else f"race/{race_key}/{args.season_year}"
+        if db_pcs_slug.endswith("/result"):
+            db_pcs_slug = db_pcs_slug[:-7]
+
         # Upsert race
         sb.table("races").upsert(
             {
-                "pcs_slug": result_slug if race_key == "_custom_" else f"race/{race_key}/{args.season_year}",
+                "pcs_slug": db_pcs_slug,
                 "name": race_name,
                 "race_date": race_date,
             },
@@ -168,7 +177,7 @@ async def main() -> None:
         race_row = (
             sb.table("races")
             .select("id, pcs_slug")
-            .eq("pcs_slug", result_slug if race_key == "_custom_" else f"race/{race_key}/{args.season_year}")
+            .eq("pcs_slug", db_pcs_slug)
             .single()
             .execute()
             .data

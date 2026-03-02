@@ -7,8 +7,9 @@ def points_for_rank(rank: int, race_tier: int, rank_points: dict[int, list[int]]
     - `race_tier` is 0/1/2 (from Rankpoints.txt `races_rank`)
     - `rank_points` is the table from Rankpoints.txt
     - rank is 1-based
+    - rank 999 is used for DNF/DNS/OTL/DSQ, returning 0 points.
     """
-    if rank <= 0:
+    if rank <= 0 or rank == 999:
         return 0
     table = rank_points.get(race_tier)
     if not table:
@@ -20,5 +21,3 @@ def points_for_rank(rank: int, race_tier: int, rank_points: dict[int, list[int]]
     if idx >= len(table):
         return int(table[-1])
     return int(table[idx])
-
-

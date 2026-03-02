@@ -59,6 +59,7 @@ export default function RulesPage() {
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
                 <div className="border-b border-slate-100 bg-slate-50 px-6 py-4">
                     <h2 className="font-semibold text-slate-800">Barème des Points</h2>
+                    <p>Si un coureur abandone une course, il n'aura pas de points.</p>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
