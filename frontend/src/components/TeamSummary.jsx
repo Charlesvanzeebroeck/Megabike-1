@@ -1,6 +1,40 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { getAllRaces } from "../services/api";
 
-export default function TeamSummary({ me, team, onEdit, isPublic, hideRiders, hideRidersMessage }) {
+export default function TeamSummary({ me, team, onEdit, isPublic, hideRiders, hideRidersMessage, initialRaceId = "ALL" }) {
+  const [selectedRaceId, setSelectedRaceId] = useState(initialRaceId);
+
+  useEffect(() => {
+    setSelectedRaceId(initialRaceId);
+  }, [initialRaceId]);
+
+  const [availableRaces, setAvailableRaces] = useState([]);
+
+  useEffect(() => {
+    async function fetchRaces() {
+      if (!team?.season) return;
+      try {
+        const allRaces = await getAllRaces(team.season);
+        const today = new Date().toISOString().slice(0, 10);
+        // Show races that have already happened (up to today)
+        const pastRaces = allRaces.filter(r => r.race_date <= today);
+        setAvailableRaces(pastRaces);
+      } catch (err) {
+        console.error("Failed to load races", err);
+      }
+    }
+    fetchRaces();
+  }, [team?.season]);
+
+  // Helper to determine the points to display for a given rider based on selection
+  const getDisplayPoints = (rider) => {
+    if (selectedRaceId === "ALL") {
+      return rider.points ?? 0;
+    }
+    const raceResult = (rider.race_results || []).find(r => r.race_id === selectedRaceId);
+    return raceResult ? raceResult.points_awarded : 0;
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -57,7 +91,25 @@ export default function TeamSummary({ me, team, onEdit, isPublic, hideRiders, hi
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-sm font-semibold text-slate-900">Coureurs</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <h3 className="text-sm font-semibold text-slate-900">Coureurs</h3>
+
+          {!hideRiders && availableRaces.length > 0 && (
+            <select
+              value={selectedRaceId}
+              onChange={(e) => setSelectedRaceId(e.target.value)}
+              className="w-full sm:w-auto rounded-md border-slate-300 py-1.5 pl-3 pr-8 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="ALL">Toutes les courses</option>
+              {availableRaces.map((race) => (
+                <option key={race.id} value={race.id}>
+                  {race.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
         {hideRiders ? (
           <div className="p-8 text-center text-slate-500">
             <p>{hideRidersMessage || "La composition de l'équipe est masquée."}</p>
@@ -75,7 +127,7 @@ export default function TeamSummary({ me, team, onEdit, isPublic, hideRiders, hi
               </thead>
               <tbody>
                 {[...(team?.riders ?? [])]
-                  .sort((a, b) => (b.points ?? 0) - (a.points ?? 0))
+                  .sort((a, b) => getDisplayPoints(b) - getDisplayPoints(a))
                   .map((r, idx) => (
                     <tr key={`${r.rider_name}-${idx}`} className="border-b border-slate-100">
                       <td className="py-2 pr-4 align-middle">{idx + 1}</td>
@@ -93,8 +145,10 @@ export default function TeamSummary({ me, team, onEdit, isPublic, hideRiders, hi
                           <span className="font-medium">{r.rider_name}</span>
                         </div>
                       </td>
-                      <td className="py-2 pr-4 text-right align-middle">{r.points ?? 0}</td>
-                      <td className="py-2 pr-4 text-right align-middle">{r.price ?? 0}</td>
+                      <td className="py-2 pr-4 text-right align-middle font-medium text-slate-700">
+                        {getDisplayPoints(r)}
+                      </td>
+                      <td className="py-2 pr-4 text-right align-middle text-slate-500">{r.price ?? 0}</td>
                     </tr>
                   ))}
               </tbody>

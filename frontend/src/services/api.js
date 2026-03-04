@@ -190,7 +190,11 @@ export async function getMyTeam(season = 2026) {
       riders (
         id, rider_name, team_name, nationality, active, photo_url,
         rider_prices(season_year, price),
-        rider_points(season_year, points)
+        rider_points(season_year, points),
+        race_results(
+          race_id, rank, points_awarded,
+          races(id, name, race_date)
+        )
       )
     `)
     .eq("team_id", team.id);
@@ -206,6 +210,12 @@ export async function getMyTeam(season = 2026) {
       const priceObj = r.rider_prices?.find(p => p.season_year === season);
       const pointsObj = r.rider_points?.find(p => p.season_year === season);
 
+      // Filter race_results to the current season to avoid leaking old details
+      const filteredRaceResults = (r.race_results || []).filter(res => {
+        if (!res.races || !res.races.race_date) return false;
+        return res.races.race_date.startsWith(season.toString());
+      });
+
       return {
         id: r.id,
         rider_name: r.rider_name,
@@ -214,7 +224,8 @@ export async function getMyTeam(season = 2026) {
         active: r.active,
         photo_url: r.photo_url,
         price: priceObj ? priceObj.price : 0,
-        points: pointsObj ? pointsObj.points : 0
+        points: pointsObj ? pointsObj.points : 0,
+        race_results: filteredRaceResults
       };
     })
   };
@@ -388,7 +399,11 @@ export async function getTeamById(teamId, season = 2026) {
       riders (
         id, rider_name, team_name, nationality, active, photo_url,
         rider_prices(season_year, price),
-        rider_points(season_year, points)
+        rider_points(season_year, points),
+        race_results(
+          race_id, rank, points_awarded,
+          races(id, name, race_date)
+        )
       )
     `)
     .eq("team_id", team.id);
@@ -406,6 +421,11 @@ export async function getTeamById(teamId, season = 2026) {
       const priceObj = r.rider_prices?.find(p => p.season_year === team.season_year);
       const pointsObj = r.rider_points?.find(p => p.season_year === team.season_year);
 
+      const filteredRaceResults = (r.race_results || []).filter(res => {
+        if (!res.races || !res.races.race_date) return false;
+        return res.races.race_date.startsWith(team.season_year.toString());
+      });
+
       return {
         id: r.id,
         rider_name: r.rider_name,
@@ -414,7 +434,8 @@ export async function getTeamById(teamId, season = 2026) {
         active: r.active,
         photo_url: r.photo_url,
         price: priceObj ? priceObj.price : 0,
-        points: pointsObj ? pointsObj.points : 0
+        points: pointsObj ? pointsObj.points : 0,
+        race_results: filteredRaceResults
       };
     })
   };

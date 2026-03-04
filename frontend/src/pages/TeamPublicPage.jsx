@@ -1,11 +1,13 @@
 import React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useLocation } from "react-router-dom";
 import { getTeamById, REVEAL_DATE, getAuthToken, parseJwt } from "../services/api";
 import { debugLog } from "../services/debug";
 import TeamSummary from "../components/TeamSummary";
 
 export default function TeamPublicPage() {
     const { teamId } = useParams();
+    const location = useLocation();
+    const initialRaceId = location.state?.initialRaceId || "ALL";
     const [team, setTeam] = React.useState(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
@@ -56,6 +58,7 @@ export default function TeamPublicPage() {
                     isPublic={true}
                     hideRiders={!isRevealOK}
                     hideRidersMessage="La composition de l'équipe est masquée jusqu'au début de la saison (28/02/2026)."
+                    initialRaceId={initialRaceId}
                 />
             ) : null}
         </div>

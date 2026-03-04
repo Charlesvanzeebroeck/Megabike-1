@@ -15,7 +15,6 @@ export default function LeaderboardPage() {
     const [races, setRaces] = React.useState([]); // List of races
     const [selectedRaceId, setSelectedRaceId] = React.useState(null);
     const [raceRows, setRaceRows] = React.useState([]); // Race specific leaderboard
-
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState(null);
 
@@ -221,6 +220,7 @@ export default function LeaderboardPage() {
                                                     <Link
                                                         className="block text-blue-700 hover:underline"
                                                         to={`/team/${t.id}`}
+                                                        state={{ initialRaceId: selectedRaceId }}
                                                     >
                                                         {t.teamName}
                                                     </Link>
