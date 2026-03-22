@@ -59,7 +59,8 @@ export async function getMe() {
     debugLog("getMe error", error);
     if (error.code === "PGRST116" || error.code === "401" || error.message?.includes("JWT")) {
       console.error("CRITICAL AUTH ERROR:", error);
-      console.warn("Retaining token for debugging purposes.");
+      console.warn("Clearing expired or invalid token to force re-login.");
+      setAuthToken(null);
     }
     throw error;
   }
