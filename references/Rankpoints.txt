@@ -1,0 +1,31 @@
+races_rank = {"omloop-het-nieuwsblad" : 1,
+                "faun-ardeche-classic":2,
+                "la-drome-classic":2,
+                "kuurne-brussel-kuurne" : 2,
+                "trofeo-laigueglia":2,
+                "strade-bianche" : 1,
+                "nokere-koers":2,
+                "milano-torino":2,
+                "gp-de-denain":2,
+                "bredene-koksijde-classic":2,
+                "milano-sanremo":0,
+                "classic-brugge-de-panne":1,
+                "e3-harelbeke":1,
+                "gent-wevelgem":1,
+                "dwars-door-vlaanderen":1,
+                "gran-premio-miguel-indurain":2,
+                "ronde-van-vlaanderen":0,
+                "scheldeprijs":2,
+                "brabantse-pijl":2,
+                "paris-roubaix":0,
+                "amstel-gold-race":1,
+                "la-fleche-wallone":1,
+                "liege-bastogne-liege":0}
+
+
+
+rank_points = {
+    0: [240, 150, 120, 100, 85, 75, 65, 55, 50, 45, 40, 35, 30, 28, 26, 24, 22, 20, 18, 16, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 5],
+    1: [200, 125, 100, 80, 70, 60, 50, 45, 40, 35, 30, 25, 20, 18, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 3, 3, 3, 3, 3, 3],
+    2: [150, 85, 70, 55, 45, 40, 35, 30, 25, 20, 16, 14, 12, 10, 9, 8, 7, 6, 5, 4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+              }

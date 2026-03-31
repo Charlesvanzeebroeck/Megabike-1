@@ -185,7 +185,7 @@ async def main() -> None:
         race_id = race_row["id"]
 
         # Determine tier and points
-        tier = RACES_RANK.get(race_key, 1) if race_key != "_custom_" else 1
+        tier = RACES_RANK.get(race_key.lower(), 1) if race_key != "_custom_" else 1
 
         # Upsert riders from results (so we don't rely on a separate yearly seed)
         riders_to_upsert = []
